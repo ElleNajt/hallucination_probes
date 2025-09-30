@@ -15,9 +15,9 @@ from pathlib import Path
 import shutil
 from huggingface_hub import HfApi, hf_hub_download
 
-DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
+DEFAULT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 DEFAULT_PROBE_REPO = "andyrdt/hallucination-probes"
-N_GPU = 2
+N_GPU = 1
 GPU_CONFIG = f"H100:{N_GPU}"
 SCALEDOWN_WINDOW = 2 * 60 # 2 minutes
 TIMEOUT = 15 * 60 # 15 minutes
