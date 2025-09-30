@@ -343,9 +343,10 @@ class ProbeInferenceService:
             hook_handle = target_layer.register_forward_hook(activation_hook)
             
             try:
-                # Generate with vLLM
+                # Generate with vLLM - use TokensPrompt for token IDs
+                from vllm import TokensPrompt
                 outputs = self.llm.generate(
-                    prompt_token_ids=[prompt_token_ids],
+                    prompts=[TokensPrompt(prompt_token_ids=prompt_token_ids)],
                     sampling_params=sampling_params,
                     **generate_kwargs
                 )
