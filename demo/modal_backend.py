@@ -306,7 +306,8 @@ class ProbeInferenceService:
                 n=1,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                top_p=0.9 if temperature > 0 else 1.0
+                top_p=0.9 if temperature > 0 else 1.0,
+                logprobs=5  # Return top 5 logprobs for entropy calculation
             )
             
             # Prepare generation kwargs with LoRA if available
@@ -353,7 +354,11 @@ class ProbeInferenceService:
                 
                 # Extract generated tokens
                 generated_ids = list(outputs[0].outputs[0].token_ids)
-                
+
+                # Extract logprobs and calculate entropy
+                output = outputs[0].outputs[0]
+                logprobs_data = output.logprobs if hasattr(output, 'logprobs') else None
+
             finally:
                 # Remove hook
                 hook_handle.remove()
@@ -363,16 +368,35 @@ class ProbeInferenceService:
                 # EOS token might cause mismatch
                 if len(probe_probs) + 1 == len(generated_ids):
                     probe_probs.append(0.0)  # Assign 0.0 to EOS token
-            
+
+            # Calculate token-level entropy from logprobs
+            token_entropies = []
+            if logprobs_data:
+                for token_logprobs in logprobs_data:
+                    if token_logprobs:
+                        # Convert logprobs to probabilities
+                        import math
+                        probs = []
+                        for token_id, logprob_obj in token_logprobs.items():
+                            logprob = logprob_obj.logprob if hasattr(logprob_obj, 'logprob') else logprob_obj
+                            probs.append(math.exp(logprob))
+
+                        # Calculate entropy: -sum(p * log(p))
+                        entropy = -sum(p * math.log(p) if p > 0 else 0 for p in probs)
+                        token_entropies.append(entropy)
+                    else:
+                        token_entropies.append(0.0)
+
             # Decode tokens
             generated_tokens = self.tokenizer.convert_ids_to_tokens(generated_ids)
             generated_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
-            
+
             return {
                 "generated_token_ids": generated_ids,
                 "generated_tokens": generated_tokens,
                 "generated_text": generated_text,
-                "probe_probs": probe_probs
+                "probe_probs": probe_probs,
+                "token_entropies": token_entropies
             }
             
         except Exception as e:
